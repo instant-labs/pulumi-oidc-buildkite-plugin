@@ -1,0 +1,20 @@
+name: Pulumi OIDC Buildkite Plugin
+description: Allows you to exchange a Buildkite OIDC token for a Pulumi access token
+author: https://github.com/instant-labs
+requirements:
+  - bash
+  - curl
+  - jq
+configuration:
+  properties:
+    org_name:
+      type: string
+    lifetime:
+      type: number
+    requested_token_type:
+      type: string
+    scope:
+      type: string
+  required:
+    - org_name
+  additionalProperties: false

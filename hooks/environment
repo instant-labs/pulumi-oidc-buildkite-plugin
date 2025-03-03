@@ -1,0 +1,63 @@
+#!/bin/bash
+
+set -euo pipefail
+
+if [[ -z "${BUILDKITE_PLUGIN_PULUMI_OIDC_ORG_NAME:-}" ]]; then
+  echo "🚨 Missing 'org_name' plugin configuration"
+  exit 1
+fi
+
+audience="urn:pulumi:org:${BUILDKITE_PLUGIN_PULUMI_OIDC_ORG_NAME}"
+requested_token_type="${BUILDKITE_PLUGIN_PULUMI_OIDC_REQUESTED_TOKEN_TYPE:-urn:pulumi:token-type:access_token:organization}"
+
+# prepare Buildkite command; optional args to be added before executing
+request_token_cmd=(buildkite-agent oidc request-token)
+
+# prepare AWS command; OIDC token and optional args to be added before executing
+exchange_token_cmd=(curl -sS -X POST https://api.pulumi.com/api/oauth/token
+    -H "Content-Type: application/x-www-form-urlencoded"
+    -d "subject_token_type=urn:ietf:params:oauth:token-type:id_token"
+    -d "grant_type=urn:ietf:params:oauth:grant-type:token-exchange")
+
+
+# add required arguments
+request_token_cmd+=(--audience "${audience}")
+request_token_cmd+=(--lifetime "${BUILDKITE_PLUGIN_PULUMI_OIDC_LIFETIME:-0}")
+
+echo "~~~ :buildkite::key::pulumi: Requesting an OIDC token for ${audience} from Buildkite"
+buildkite_oidc_token=$("${request_token_cmd[@]}")
+
+echo "~~~ Exchanging OIDC token for Pulumi access token"
+# add required arguments
+exchange_token_cmd+=(-d "audience=${audience}")
+exchange_token_cmd+=(-d "requested_token_type=${requested_token_type}")
+if [[ -n "${BUILDKITE_PLUGIN_PULUMI_OIDC_SCOPE:-}" ]]; then
+  exchange_token_cmd+=(-d "scope=${BUILDKITE_PLUGIN_PULUMI_OIDC_SCOPE:-}")
+fi
+exchange_token_cmd+=(-d "subject_token=${buildkite_oidc_token}")
+
+exchange_response=$("${exchange_token_cmd[@]}")
+exchange_response_status=$?
+
+if [[ $exchange_response_status -ne 0 ]]; then
+  echo "Requesting API token failed, curl exited with status $exchange_response_status"
+  echo "${exchange_response}"
+  exit 1
+fi
+
+if ! jq -e . >/dev/null 2>&1 <<<"${exchange_response}"; then
+  echo "Requesting API token failed, invalid JSON response body"
+  exit 1
+fi
+
+error_message=$(jq -er '"\(.error): \(.error_description)"' <<< "${exchange_response}")
+has_error=$?
+if [ "${has_error}" -ne 0 ]; then
+  echo "Requesting API token failed"
+  echo "${error_message}"
+  exit 1
+fi
+
+PULUMI_ACCESS_TOKEN=$(jq -r .access_token <<< "${exchange_response}")
+export PULUMI_ACCESS_TOKEN
+
