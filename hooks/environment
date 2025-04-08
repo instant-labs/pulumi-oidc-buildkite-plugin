@@ -36,6 +36,11 @@ if [[ -n "${BUILDKITE_PLUGIN_PULUMI_OIDC_SCOPE:-}" ]]; then
 fi
 exchange_token_cmd+=(-d "subject_token=${buildkite_oidc_token}")
 
+if [[ ${BUILDKITE_PLUGIN_PULUMI_OIDC_DEBUG:-} == "true" ]]; then
+  echo "~~~ Pulumi API token exchange cmd:"
+  echo "${exchange_token_cmd[@]}"
+fi
+
 exchange_response=$("${exchange_token_cmd[@]}")
 exchange_response_status=$?
 
@@ -48,6 +53,11 @@ fi
 if ! jq -e . >/dev/null 2>&1 <<<"${exchange_response}"; then
   echo "Requesting API token failed, invalid JSON response body"
   exit 1
+fi
+
+if [[ ${BUILDKITE_PLUGIN_PULUMI_OIDC_DEBUG:-} == "true" ]]; then
+  echo "~~~ Pulumi API token exchange response:"
+  echo "${exchange_response}"
 fi
 
 error_message=$(jq -er '"\(.error): \(.error_description)"' <<< "${exchange_response}")

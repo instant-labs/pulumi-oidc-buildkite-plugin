@@ -24,9 +24,6 @@ run_test_command() {
   run run_test_command $PWD/hooks/environment
 
   assert_success
-  assert_output --partial "pul-TOKEN"
-  
-
   assert_output --partial "TESTRESULT:PULUMI_ACCESS_TOKEN=pul-TOKEN"
 
   unstub curl
@@ -45,9 +42,6 @@ run_test_command() {
   run run_test_command $PWD/hooks/environment
 
   assert_success
-  assert_output --partial "pul-TOKEN"
-  
-
   assert_output --partial "TESTRESULT:PULUMI_ACCESS_TOKEN=pul-TOKEN"
 
   unstub curl
@@ -67,9 +61,28 @@ run_test_command() {
   run run_test_command $PWD/hooks/environment
 
   assert_success
-  assert_output --partial "pul-TOKEN"
-  
+  assert_output --partial "TESTRESULT:PULUMI_ACCESS_TOKEN=pul-TOKEN"
 
+  unstub curl
+  unstub buildkite-agent
+}
+
+@test "Debug option" {
+  export BUILDKITE_JOB_ID="job-uuid-42"
+  export BUILDKITE_PLUGIN_PULUMI_OIDC_ORG_NAME="acme_org"
+  export BUILDKITE_PLUGIN_PULUMI_OIDC_REQUESTED_TOKEN_TYPE="urn:pulumi:token-type:access_token:team"
+  export BUILDKITE_PLUGIN_PULUMI_OIDC_SCOPE="team:acme_team"
+  export BUILDKITE_PLUGIN_PULUMI_OIDC_DEBUG="true"
+
+  stub buildkite-agent 'oidc request-token --audience urn:pulumi:org:acme_org --lifetime 0 : echo "buildkite-oidc-token"'
+  stub curl '-sS -X POST https://api.pulumi.com/api/oauth/token -H Content-Type:\ application/x-www-form-urlencoded -d subject_token_type=urn:ietf:params:oauth:token-type:id_token -d grant_type=urn:ietf:params:oauth:grant-type:token-exchange -d audience=urn:pulumi:org:acme_org -d requested_token_type=urn:pulumi:token-type:access_token:team -d scope=team:acme_team -d subject_token=buildkite-oidc-token : echo "{\"access_token\": \"pul-TOKEN\"}"'
+
+  run run_test_command $PWD/hooks/environment
+
+  assert_success
+  assert_output --partial "~~~ Pulumi API token exchange cmd:"
+  assert_output --partial "~~~ Pulumi API token exchange response:"
+  assert_output --partial "{\"access_token\": \"pul-TOKEN\"}"
   assert_output --partial "TESTRESULT:PULUMI_ACCESS_TOKEN=pul-TOKEN"
 
   unstub curl

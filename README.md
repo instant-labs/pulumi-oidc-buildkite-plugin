@@ -34,6 +34,10 @@ The scope to use when requesting the Pulumi access token, according to the token
     For team access tokens: team:TEAM_NAME
     For organization access tokens, the admin scope can be set to request a token with admin privileges (the authorization policy should explicitly grant the increased permissions)
 
+#### `debug` (boolean)
+
+Toogle to output debug information. This will print the Buildkite token as well as the exchanged Pulumi token. This allows to introspect the tokens to debug any issues.
+
 ## Examples
 
 Show how your plugin is to be used
@@ -61,6 +65,7 @@ steps:
           lifetime: 3600
           requested_token_type: "urn:pulumi:token-type:access_token:team"
           scope: "team:acme_team"
+          debug: true
 ```
 
 ## 📜 License
