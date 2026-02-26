@@ -14,7 +14,8 @@ requested_token_type="${BUILDKITE_PLUGIN_PULUMI_OIDC_REQUESTED_TOKEN_TYPE:-urn:p
 request_token_cmd=(buildkite-agent oidc request-token)
 
 # prepare Pulumi token exchange command; OIDC token and optional args to be added before executing
-exchange_token_cmd=(curl -sS -X POST https://api.pulumi.com/api/oauth/token
+backend_url="${BUILDKITE_PLUGIN_PULUMI_OIDC_BACKEND_URL:-https://api.pulumi.com}"
+exchange_token_cmd=(curl -sS -X POST "${backend_url}/api/oauth/token"
     -H "Content-Type: application/x-www-form-urlencoded"
     -d "subject_token_type=urn:ietf:params:oauth:token-type:id_token"
     -d "grant_type=urn:ietf:params:oauth:grant-type:token-exchange")

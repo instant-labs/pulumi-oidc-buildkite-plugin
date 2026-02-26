@@ -84,6 +84,12 @@ Scope for the requested token. The value depends on the `requested_token_type`:
 
 The authorization policy must explicitly grant the requested scope.
 
+#### `backend_url` (string)
+
+The Pulumi Cloud API base URL. Override this for self-hosted Pulumi Cloud deployments.
+
+Default: `https://api.pulumi.com`
+
 #### `debug` (boolean)
 
 When `true`, prints the full curl command and API response for troubleshooting. **Warning**: this exposes both the Buildkite OIDC token and the Pulumi access token in the build log. Only use for debugging.
