@@ -13,7 +13,7 @@ requested_token_type="${BUILDKITE_PLUGIN_PULUMI_OIDC_REQUESTED_TOKEN_TYPE:-urn:p
 # prepare Buildkite command; optional args to be added before executing
 request_token_cmd=(buildkite-agent oidc request-token)
 
-# prepare AWS command; OIDC token and optional args to be added before executing
+# prepare Pulumi token exchange command; OIDC token and optional args to be added before executing
 exchange_token_cmd=(curl -sS -X POST https://api.pulumi.com/api/oauth/token
     -H "Content-Type: application/x-www-form-urlencoded"
     -d "subject_token_type=urn:ietf:params:oauth:token-type:id_token"
@@ -41,10 +41,11 @@ if [[ ${BUILDKITE_PLUGIN_PULUMI_OIDC_DEBUG:-} == "true" ]]; then
   echo "${exchange_token_cmd[@]}"
 fi
 
-exchange_response=$("${exchange_token_cmd[@]}")
-exchange_response_status=$?
-
-if [[ $exchange_response_status -ne 0 ]]; then
+exchange_token_cmd+=(-f)
+if exchange_response=$("${exchange_token_cmd[@]}" 2>&1); then
+  :
+else
+  exchange_response_status=$?
   echo "Requesting API token failed, curl exited with status $exchange_response_status"
   echo "${exchange_response}"
   exit 1
@@ -60,9 +61,8 @@ if [[ ${BUILDKITE_PLUGIN_PULUMI_OIDC_DEBUG:-} == "true" ]]; then
   echo "${exchange_response}"
 fi
 
-error_message=$(jq -er '"\(.error): \(.error_description)"' <<< "${exchange_response}")
-has_error=$?
-if [ "${has_error}" -ne 0 ]; then
+if jq -e 'has("error")' <<< "${exchange_response}" > /dev/null 2>&1; then
+  error_message=$(jq -r '"\(.error): \(.error_description // "no description")"' <<< "${exchange_response}")
   echo "Requesting API token failed"
   echo "${error_message}"
   exit 1
